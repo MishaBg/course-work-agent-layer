@@ -1,0 +1,108 @@
+openapi: 3.0.0
+info:
+  title: Прикладной уровень (Видеоплеер)
+  description: WebSocket-сервер для авторизации и передачи видео, HTTP-метод Receive от транспортного уровня
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:3000
+    description: Прикладной сервер (FastAPI)
+
+paths:
+  /receive:
+    post:
+      summary: Получить сообщение от транспортного уровня (видеофрагмент или ошибку)
+      operationId: receiveMessage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReceiveRequest'
+      responses:
+        '200':
+          description: Сообщение принято, отправлено клиенту через WebSocket
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "ok"
+        '400':
+          description: Ошибка в запросе
+        '500':
+          description: Внутренняя ошибка
+
+components:
+  schemas:
+    ReceiveRequest:
+      type: object
+      required:
+        - sender
+        - timestamp
+        - error_flag
+        - payload
+      properties:
+        sender:
+          type: string
+          description: Имя отправителя
+          example: "transport_service"
+        timestamp:
+          type: string
+          format: date-time
+          description: Время отправки
+          example: "2026-04-11T12:00:00.000Z"
+        error_flag:
+          type: boolean
+          description: true — если транспортный уровень не смог получить фрагмент (таймаут 5 сек или агент недоступен)
+          example: false
+        payload:
+          type: object
+          required:
+            - type
+            - data
+          properties:
+            type:
+              type: string
+              enum: [video, error]
+              description: Тип полезной нагрузки
+            data:
+              type: string
+              description: |
+                При type=video — base64-кодированный видеофрагмент (MP4)
+                При type=error — текст сообщения об ошибке
+              example: "base64encodedvideo..."
+            fragment_number:
+              type: integer
+              description: Номер фрагмента (от 1 до 10)
+              minimum: 1
+              maximum: 10
+              example: 3
+
+  WebSocketConnection:
+    type: object
+    description: |
+      WebSocket-соединение устанавливается после авторизации.
+      Клиент отправляет события перемотки, сервер отправляет видеофрагменты.
+    properties:
+      event_from_client:
+        type: object
+        properties:
+          type:
+            type: string
+            enum: [seek]
+          position_seconds:
+            type: integer
+            description: Позиция перемотки в секундах (0-3000)
+      event_from_server:
+        type: object
+        properties:
+          type:
+            type: string
+            enum: [video_chunk, error]
+          data:
+            type: string
+          fragment_number:
+            type: integer

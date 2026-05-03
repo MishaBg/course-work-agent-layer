@@ -1,0 +1,91 @@
+openapi: 3.0.0
+info:
+  title: Транспортный уровень
+  description: |
+    Маршрутизация запросов на агентные серверы, потеря запросов 2%,
+    таймаут ожидания ответа 5 секунд, передача через Kafka.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8080
+    description: Транспортный сервис (Go + Kafka)
+
+paths:
+  /send:
+    post:
+      summary: Принять запрос на видео от прикладного уровня
+      operationId: sendRequest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendRequest'
+      responses:
+        '200':
+          description: Запрос принят в обработку
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "accepted"
+        '400':
+          description: Ошибка в запросе
+        '500':
+          description: Внутренняя ошибка
+
+components:
+  schemas:
+    SendRequest:
+      type: object
+      required:
+        - username
+        - fragment_number
+        - timestamp
+      properties:
+        username:
+          type: string
+          description: Имя пользователя (для маршрутизации ответа)
+          example: "alice"
+        fragment_number:
+          type: integer
+          description: Номер запрашиваемого фрагмента (1-10)
+          minimum: 1
+          maximum: 10
+          example: 3
+        timestamp:
+          type: string
+          format: date-time
+          description: Время запроса
+          example: "2026-04-11T12:00:00.000Z"
+
+    KafkaMessage:
+      type: object
+      description: Сообщение, отправляемое в Kafka между компонентами транспортного уровня
+      properties:
+        request_id:
+          type: string
+          description: Уникальный ID запроса
+        fragment_number:
+          type: integer
+        username:
+          type: string
+        timestamp:
+          type: string
+        retry_count:
+          type: integer
+          default: 0
+
+    AgentResponse:
+      type: object
+      properties:
+        video_data:
+          type: string
+          format: binary
+        error_flag:
+          type: boolean
+        error_message:
+          type: string
