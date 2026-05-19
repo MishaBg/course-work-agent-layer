@@ -1,7 +1,6 @@
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import verify_password
 from app.repositories.user_repository import UserRepository
 from app.schemas.auth import LoginResponse
 
@@ -12,7 +11,8 @@ class AuthService:
 
     async def login(self, username: str, password: str) -> LoginResponse:
         user = await self.user_repo.get_by_username(username)
-        if user is None or not verify_password(password, user.password_hash):
+        # Plain-text auth mode: password from request must match stored DB value.
+        if user is None or (user.password_hash or "") != password:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid username or password",

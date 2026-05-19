@@ -30,3 +30,10 @@ class UserRepository:
         if user is None:
             user = await self.create(user_id=user_id, username=username)
         return user
+
+    async def set_playback_position(self, user: User, video_id: str | None, position_seconds: int) -> User:
+        user.last_video_id = video_id
+        user.last_position_seconds = max(0, int(position_seconds))
+        await self.db.flush()
+        await self.db.refresh(user)
+        return user
